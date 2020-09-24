@@ -1,0 +1,95 @@
+-- This is a GNAT, GCC or GNAT Programming Studio (GPS) project file
+-- for the swarming demo
+-- Build me with "gnatmake -P swarm_windows.gpr", or open me with GPS
+--
+project Swarm_Windows is
+
+   for Source_Dirs use ("Sources/**", "bindings/win32", "bindings");
+   for Main use ("swarm.adb");
+   for Exec_Dir use "Execute";
+   type Specific_Build_Modes_Type is
+      ("Production", "Development", "Performance");
+   Specific_Build_Modes : Specific_Build_Modes_Type := external ("Specific_build_modes", "Development");
+
+   case Specific_Build_Modes is
+
+      when "Production" =>
+         for Object_Dir use "Build/for_production";
+
+      when "Development" =>
+         for Object_Dir use "Build/for_development";
+
+      when "Performance" =>
+         for Object_Dir use "Build/for_performance";
+   end case;
+
+   package Compiler is
+
+      case Specific_Build_Modes is
+
+         when "Production" =>
+            for Default_Switches ("ada") use ("-gnatVarpmifedcO", "-gnatw.a.bc.cdfgh.hi.ijk.kl.lm.mo.op.pqr.r.st.tu.uv.vw.wx.xyz", "-gnat12", "-gnatyaAbBcCehfiklnOprStux", "-gnato", "-fstack-check", "-gnatE", "-gnata", "-O2", "-gnatn", 
+               "-funroll-loops");
+
+         when "Development" =>
+            for Default_Switches ("ada") use ("-gnatVarpmifedcO", "-gnatw.a.bc.cdfgh.hi.ijk.kl.lm.mo.op.pqr.r.szy.xxw.vv.uu.tt.w", "-gnat12", "-gnatyaAbBcCehfiklnOprStuxI", "-g", "-gnata", "-gnatf", "-gnatE", "-fstack-check", "-gnato");
+
+         when "Performance" =>
+            for Default_Switches ("ada") use ("-gnatVn", "-gnatw.a.bc.cdfgh.hi.ijk.kl.lm.mo.op.pqr.r.st.tu.uv.vw.wx.xyz", "-gnat12", "-gnatyaAbBcCehfiklnOprStux", "-gnatn", "-funroll-loops", "-O3", "-gnatp");
+      end case;
+   end Compiler;
+
+   package Linker is
+
+      case Specific_Build_Modes is
+
+         when "Development" =>
+            for Default_Switches ("ada") use ("-g", "./obj/libwin32/glee.o", "-lopengl32", "-lglu32", "-lfreeglut", "-L./obj/libwin32");
+
+         when "Production" =>
+            for Default_Switches ("ada") use ("-s", "-Wl,--gc-sections", "./obj/libwin32/glee.o", "-lopengl32", "-lglu32", "-lfreeglut", "-L./obj/libwin32", "-mwindows");
+
+         when "Performance" =>
+            for Default_Switches ("ada") use ("-s", "-Wl,--gc-sections", "./obj/libwin32/glee.o", "-lopengl32", "-lglu32", "-lfreeglut", "-L./obj/libwin32", "-mwindows");
+      end case;
+   end Linker;
+
+   package Naming is
+      for Spec_Suffix ("c") use ".h";
+      for Body_Suffix ("c") use ".c";
+      for Spec_Suffix ("c++") use ".hh";
+      for Body_Suffix ("c++") use ".cpp";
+      for Spec_Suffix ("changelog") use "changelog";
+      for Spec_Suffix ("project file") use ".gpr";
+      for Spec_Suffix ("python") use ".py";
+   end Naming;
+
+   package Builder is
+      case Specific_Build_Modes is
+
+         when "Production" =>
+            for Default_Switches ("ada") use ("-j2", "-s", "-m");
+
+         when "Development" =>
+            for Default_Switches ("ada") use ("-j2", "-s", "-m", "-g", "-C");
+
+         when "Performance" =>
+            for Default_Switches ("ada") use ("-j2", "-s", "-m");
+      end case;
+   end Builder;
+
+   package Binder is
+      for Default_Switches ("ada") use ("-E");
+   end Binder;
+
+   package Ide is
+      for Default_Switches ("adacontrol") use ("-F", "gnat_short");
+      for Documentation_Dir use "Documentation";
+   end Ide;
+
+   package Pretty_Printer is
+      for Default_Switches ("ada") use ("-l3");
+   end Pretty_Printer;
+
+end Swarm_Windows;
+

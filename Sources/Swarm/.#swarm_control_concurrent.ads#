@@ -1,0 +1,11 @@
+generic
+
+No_Of_CPU_Cores : Positive;
+
+package Swarm_Control_Concurrent_Generic is
+
+   type Job_Type is (Set_Acceleration, Move_Element);
+
+   procedure Distribute_Jobs (Job : Job_Type);
+
+end Swarm_Control_Concurrent_Generic;

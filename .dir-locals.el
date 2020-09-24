@@ -1,0 +1,7 @@
+((ada-mode . ((lsp-ada-project-file . "/home/abhaas/Documents/COMP2310/Assignment1/Assignment_1_template/swarm_linux.gpr")
+              (ada-build-make-cmd . "gprbuild -d -P swarm_linux.gpr -XSpecific_build_modes=Development")
+              (ada-build-run-cmd . "/home/abhaas/Documents/COMP2310/Assignment1/Assignment_1_template/Execute/swarm")
+              (wisi-prj--default . "/home/abhaas/Documents/COMP2310/Assignment1/Assignment_1_template/swarm_linux.gpr")
+              (wisi-prj--current-file . "/home/abhaas/Documents/COMP2310/Assignment1/Assignment_1_template/swarm_linux.gpr")
+              ))
+ )
