@@ -2,16 +2,20 @@
 
 --  with Ada.Real_Time; use Ada.Real_Time; with Ada.Text_IO; use Ada.Text_IO;
 with Exceptions; use Exceptions;
---  with Real_Type; use Real_Type; with Generic_Sliding_Statistics; with
---  Rotations; use Rotations; with Vectors_3D; use Vectors_3D;
+--  with Real_Type; use Real_Type;
+-- with Generic_Sliding_Statistics;
+--  with Rotations; use Rotations;
+with Vectors_3D;        use Vectors_3D;
 with Vehicle_Interface; use Vehicle_Interface;
---  with Vehicle_Message_Type; use Vehicle_Message_Type; with
---  Swarm_Structures; use Swarm_Structures; with Swarm_Structures_Base;
---  use Swarm_Structures_Base;
-with Ada.Text_IO; use Ada.Text_IO;
+--  with Vehicle_Message_Type; use Vehicle_Message_Type;
+-- with Swarm_Structures; use Swarm_Structures;
+with Swarm_Structures_Base; use Swarm_Structures_Base;
+-- with Ada.Text_IO; use Ada.Text_IO;
 
 package body Vehicle_Task_Type is
 
+   Shared_Globe  : Vector_3D;
+   Half_Throttle : constant Throttle_T := 0.5;
    task body Vehicle_Task is
 
       Vehicle_No : Positive;
@@ -48,8 +52,23 @@ package body Vehicle_Task_Type is
 
             Wait_For_Next_Physics_Update;
 
-            -- Your vehicle should respond to the world here: sense, listen,
-            -- talk, act?
+            -- Get the Globe and store it in Common Position
+            declare
+               Globes : constant Energy_Globes := Energy_Globes_Around;
+            begin
+               for G of Globes loop
+                  Shared_Globe := G.Position;
+                  exit;
+               end loop;
+            end;
+
+            if Current_Charge < Half_Charge then
+               Set_Throttle (Full_Throttle);
+               Set_Destination (Shared_Globe);
+            else
+               Set_Throttle (Half_Throttle);
+               Set_Destination (Shared_Globe + (0.1, 0.0, 0.0));
+            end if;
 
          end loop Outer_task_loop;
 
