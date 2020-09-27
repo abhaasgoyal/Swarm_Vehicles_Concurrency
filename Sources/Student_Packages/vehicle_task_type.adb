@@ -1,75 +1,122 @@
 -- Suggestions for packages which might be useful:
 
---  with Ada.Real_Time; use Ada.Real_Time; with Ada.Text_IO; use Ada.Text_IO;
-with Exceptions; use Exceptions;
---  with Real_Type; use Real_Type;
--- with Generic_Sliding_Statistics;
---  with Rotations; use Rotations;
-with Vectors_3D;        use Vectors_3D;
-with Vehicle_Interface; use Vehicle_Interface;
---  with Vehicle_Message_Type; use Vehicle_Message_Type;
--- with Swarm_Structures; use Swarm_Structures;
+with Ada.Real_Time;         use Ada.Real_Time;
+with Exceptions;            use Exceptions;
+with Real_Type;             use Real_Type;
+with Vectors_3D;            use Vectors_3D;
+with Vehicle_Interface;     use Vehicle_Interface;
+with Vehicle_Message_Type;  use Vehicle_Message_Type;
 with Swarm_Structures_Base; use Swarm_Structures_Base;
--- with Ada.Text_IO; use Ada.Text_IO;
+with Ada.Numerics;          use Ada.Numerics;
 
 package body Vehicle_Task_Type is
 
-   Shared_Globe  : Vector_3D;
-   Half_Throttle : constant Throttle_T := 0.5;
    task body Vehicle_Task is
+      Local_Record : Inter_Vehicle_Messages;
+      Vehicle_No   : Positive;
+      -- Phi is w.r.t z-axis and Theta w.r.t xy-plane
+      Phi   : Real := 0.0;
+      Theta : Real := 0.0;
+      -- Vehicle Set (0 - 3)
+      Vehicle_Set        : Natural;
+      No_Of_Vehicle_Sets : constant Positive        := 4;
+      Low_Battery        : constant Vehicle_Charges := 0.3;
+      Norm_Radius        : constant Vehicle_Charges := 0.3;
 
-      Vehicle_No : Positive;
-      pragma Unreferenced (Vehicle_No);
-      -- You will want to take the pragma out, once you use the "Vehicle_No"
+      function Vector_Distance
+        (V_1 : Vector_3D; V_2 : Vector_3D) return Real is
+        (abs (V_1 - V_2));
 
+      -- Could have placed in the declared block but definining the procedures
+      -- everytime in define block may slow down the program
+      function Sin (X : Real) return Real renames
+        Real_Elementary_Functions.Sin;
+      function Cos (X : Real) return Real renames
+        Real_Elementary_Functions.Cos;
+      function Y_Axis_Rotate (A : Vector_3D) return Vector_3D is
+        ((A (x) * Cos (Phi) - A (y) * Sin (Phi),
+          A (x) * Sin (Phi) + A (y) * Cos (Phi), A (z)));
+      function Orbit_Position (R : Real) return Vector_3D is
+        (Y_Axis_Rotate
+           ((Local_Record.Globe_Pos (x) + R * Sin (Theta),
+             Local_Record.Globe_Pos (y),
+             Local_Record.Globe_Pos (z) + R * Cos (Theta))));
+      procedure Spiral_Orbit (Charge : Vehicle_Charges) is
+      begin
+         Set_Throttle (0.4);
+         Set_Destination (Orbit_Position (Real (Norm_Radius * Charge)));
+      end Spiral_Orbit;
    begin
-
-      -- You need to react to this call and provide your task_id. You can e.g.
-      -- employ the assigned vehicle number (Vehicle_No) in communications with
-      -- other vehicles.
 
       accept Identify (Set_Vehicle_No : Positive; Local_Task_Id : out Task_Id)
       do
          Vehicle_No    := Set_Vehicle_No;
          Local_Task_Id := Current_Task;
       end Identify;
-
-      -- Replace the rest of this task with your own code. Maybe synchronizing
-      -- on an external event clock like "Wait_For_Next_Physics_Update", yet
-      -- you can synchronize on e.g. the real-time clock as well.
-
-      -- Without control this vehicle will go for its natural swarming
-      -- instinct.
+      Vehicle_Set := Vehicle_No mod No_Of_Vehicle_Sets;
+      Theta       := Real (Vehicle_No mod 180) * (Pi / 90.0);
+      Phi         := Real (Vehicle_Set) * (Pi / Real (No_Of_Vehicle_Sets));
 
       select
-
          Flight_Termination.Stop;
 
       then abort
 
          Outer_task_loop :
          loop
+            Theta := Theta + Pi / 180.0;
 
-            Wait_For_Next_Physics_Update;
-
-            -- Get the Globe and store it in Common Position
             declare
                Globes : constant Energy_Globes := Energy_Globes_Around;
+               Closest_Globe   : Vector_3D;
+               Received_Record : Inter_Vehicle_Messages;
             begin
-               for G of Globes loop
-                  Shared_Globe := G.Position;
-                  exit;
-               end loop;
+               if Globes'Length > 0 then
+                  Closest_Globe := Globes (1).Position;
+                  for G of Globes loop
+                     if Vector_Distance (G.Position, Position) >
+                       Vector_Distance (Closest_Globe, Position)
+                     then
+                        Closest_Globe := G.Position;
+                     end if;
+                     -- Propagate the position of the globe
+                     Send ((G.Position, Clock));
+                     exit;
+                  end loop;
+                  Local_Record.Message_Time := Clock;
+                  Local_Record.Globe_Pos    := Closest_Globe;
+               end if;
+
+               if Current_Charge < Low_Battery or else Messages_Waiting then
+                  -- Would a blocking operation for low battery since on
+                  -- emergency case
+                  Receive (Received_Record);
+                  -- Update Records to latest value
+                  if To_Duration
+                      (Received_Record.Message_Time -
+                       Local_Record.Message_Time) >
+                    0.0
+                  then
+                     Local_Record := Received_Record;
+                  else
+                     Received_Record := Local_Record;
+                  end if;
+                  -- Vehicle destination decision
+                  if Current_Charge < Low_Battery then
+                     Set_Throttle (Full_Throttle);
+                     Set_Destination (Local_Record.Globe_Pos);
+                  else
+                     Spiral_Orbit (Current_Charge);
+                  end if;
+                  -- Propagate the signal further
+                  Send (Received_Record);
+               else
+                  -- Move normally and provide graceful degradation in case
+                  -- globe dies and no incoming calls
+                  Spiral_Orbit (Current_Charge);
+               end if;
             end;
-
-            if Current_Charge < Half_Charge then
-               Set_Throttle (Full_Throttle);
-               Set_Destination (Shared_Globe);
-            else
-               Set_Throttle (Half_Throttle);
-               Set_Destination (Shared_Globe + (0.1, 0.0, 0.0));
-            end if;
-
+            Wait_For_Next_Physics_Update;
          end loop Outer_task_loop;
 
       end select;
