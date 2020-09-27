@@ -1,0 +1,14 @@
+#+TITLE: Assignment 1 COMP2310
+#+OPTIONS: toc:nil num:2
+#+LATEX: \setlength\parindent{0pt}
+#+LATEX_COMPILER: xelatex
+#+AUTHOR: Abhaas Goyal (u7145384)
+
+
+* Swarm Behaviour
+  - The swarm seems to go to right direction, defined as to go in the direction vector of ~(1.0, 0.0, 0.0) continuously, in between replenishing itself
+  - Also since initially the entities of the swarm are spread apart and reach the globes in different times, their charges also deplete in different times
+  - A destination will not become unreachable
+  - The center of mass remains the same in this case
+  - When done with multiple globes since going in a rightward vector
+  - If the vehicle is going somewhere and at that point it needs to change the destination problem (limited to one globe)
