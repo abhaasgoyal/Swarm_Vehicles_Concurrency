@@ -11,27 +11,38 @@ package body Vehicle_Task_Type is
    use Real_Elementary_Functions;
    -- Dials to adjust for optimization
    No_Of_Vehicle_Sets  : constant Positive        := 4;
-   Low_Battery         : constant Vehicle_Charges := 0.3;
+   Low_Battery         : constant Vehicle_Charges := 0.4;
    Norm_Radius         : constant Vehicle_Charges := 0.25;
    Low_Throttle        : constant Throttle_T      := 0.4;
    Initial_Degree_Step : constant Positive        := 2;
 
    type Degrees is mod 360;
-   Radians_List : array (Degrees) of Real;
+   type Angles_List is array (Degrees) of Real;
+   -- Construct Angle lookup table
+   function Initialize_Radian_Array return Angles_List is
+      Temp_Arr : Angles_List;
+   begin
+      for I in Temp_Arr'Range loop
+         Temp_Arr (I) := Real (I) * Pi / 180.0;
+      end loop;
+      return Temp_Arr;
+   end Initialize_Radian_Array;
+
+   Radians_List : constant Angles_List := Initialize_Radian_Array;
+
    task body Vehicle_Task is
-      Radians_Index : Degrees;
-      Local_Record  : Inter_Vehicle_Messages;
-      Vehicle_No    : Positive;
-      Vehicle_Set   : Natural;
+      Radians_Ix   : Degrees;
+      Local_Record : Inter_Vehicle_Messages;
+      Vehicle_No   : Positive;
+      Vehicle_Set  : Natural;
       -- Phi is w.r.t z-axis and Theta w.r.t xy-plane
       Phi   : Real;
       Theta : Real;
 
-      -- Could have placed in the declared block but definining the procedures
-      -- everytime in define block may slow down the program
-      function Vector_Distance (V_1, V_2 : Vector_3D) return Real is
+      function Distance (V_1, V_2 : Vector_3D) return Real is
         (abs (V_1 - V_2));
 
+      -- Functions for detemining next position of orbit
       function Y_Axis_Rotate (A : Vector_3D) return Vector_3D is
         ((A (x) * Cos (Phi) - A (y) * Sin (Phi),
           A (x) * Sin (Phi) + A (y) * Cos (Phi), A (z)));
@@ -40,24 +51,20 @@ package body Vehicle_Task_Type is
            (Local_Record.Globe_Pos + (R * Sin (Theta), 0.0, R * Cos (Theta))));
       procedure Spiral_Orbit (Charge : Vehicle_Charges) is
       begin
-         Radians_Index := Degrees'Succ (Radians_Index);
-         Theta         := Radians_List (Radians_Index);
+         Radians_Ix := Degrees'Succ (Radians_Ix);
+         Theta      := Radians_List (Radians_Ix);
          Set_Throttle (Low_Throttle);
          Set_Destination (Orbit_Position (Real (Norm_Radius * Charge)));
       end Spiral_Orbit;
    begin
-      -- Construct Angle lookup table
-      for I in Radians_List'Range loop
-         Radians_List (I) := Real (I) * Pi / 180.0;
-      end loop;
       accept Identify (Set_Vehicle_No : Positive; Local_Task_Id : out Task_Id)
       do
          Vehicle_No    := Set_Vehicle_No;
          Local_Task_Id := Current_Task;
       end Identify;
-      Vehicle_Set   := Vehicle_No mod No_Of_Vehicle_Sets;
-      Radians_Index := Degrees (Vehicle_No * Initial_Degree_Step);
-      Theta         := Radians_List (Radians_Index);
+      Vehicle_Set := Vehicle_No mod No_Of_Vehicle_Sets;
+      Radians_Ix  := Degrees (Vehicle_No * Initial_Degree_Step);
+      Theta       := Radians_List (Radians_Ix);
       Phi := Radians_List (Degrees (Vehicle_Set * (180 / No_Of_Vehicle_Sets)));
 
       select
@@ -75,8 +82,8 @@ package body Vehicle_Task_Type is
                if Globes'Length > 0 then
                   Closest_Globe := Globes (1).Position;
                   for G of Globes loop
-                     if Vector_Distance (G.Position, Position) >
-                       Vector_Distance (Closest_Globe, Position)
+                     if Distance (G.Position, Position) >
+                       Distance (Closest_Globe, Position)
                      then
                         Closest_Globe := G.Position;
                      end if;
