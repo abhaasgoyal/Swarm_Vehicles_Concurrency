@@ -9,24 +9,29 @@ with Ada.Numerics;          use Ada.Numerics;
 
 package body Vehicle_Task_Type is
    use Real_Elementary_Functions;
-   No_Of_Vehicle_Sets : constant Positive        := 4;
-   Low_Battery        : constant Vehicle_Charges := 0.3;
-   Norm_Radius        : constant Vehicle_Charges := 0.3;
-   Low_Throttle       : constant Throttle_T      := 0.4;
+   -- Dials to adjust for optimization
+   No_Of_Vehicle_Sets  : constant Positive        := 4;
+   Low_Battery         : constant Vehicle_Charges := 0.3;
+   Norm_Radius         : constant Vehicle_Charges := 0.25;
+   Low_Throttle        : constant Throttle_T      := 0.4;
+   Initial_Degree_Step : constant Positive        := 2;
 
+   type Degrees is mod 360;
+   Radians_List : array (Degrees) of Real;
    task body Vehicle_Task is
-      Local_Record : Inter_Vehicle_Messages;
-      Vehicle_No   : Positive;
+      Radians_Index : Degrees;
+      Local_Record  : Inter_Vehicle_Messages;
+      Vehicle_No    : Positive;
+      Vehicle_Set   : Natural;
       -- Phi is w.r.t z-axis and Theta w.r.t xy-plane
-      Phi         : Real := 0.0;
-      Theta       : Real := 0.0;
-      Vehicle_Set : Natural;
-
-      function Vector_Distance (V_1, V_2 : Vector_3D) return Real is
-        (abs (V_1 - V_2));
+      Phi   : Real;
+      Theta : Real;
 
       -- Could have placed in the declared block but definining the procedures
       -- everytime in define block may slow down the program
+      function Vector_Distance (V_1, V_2 : Vector_3D) return Real is
+        (abs (V_1 - V_2));
+
       function Y_Axis_Rotate (A : Vector_3D) return Vector_3D is
         ((A (x) * Cos (Phi) - A (y) * Sin (Phi),
           A (x) * Sin (Phi) + A (y) * Cos (Phi), A (z)));
@@ -35,24 +40,25 @@ package body Vehicle_Task_Type is
            (Local_Record.Globe_Pos + (R * Sin (Theta), 0.0, R * Cos (Theta))));
       procedure Spiral_Orbit (Charge : Vehicle_Charges) is
       begin
-         if Theta < 2.0 * Pi then
-            Theta := Theta + Pi / 180.0;
-         else
-            Theta := Pi / 180.0;
-         end if;
+         Radians_Index := Degrees'Succ (Radians_Index);
+         Theta         := Radians_List (Radians_Index);
          Set_Throttle (Low_Throttle);
          Set_Destination (Orbit_Position (Real (Norm_Radius * Charge)));
       end Spiral_Orbit;
    begin
-
+      -- Construct Angle lookup table
+      for I in Radians_List'Range loop
+         Radians_List (I) := Real (I) * Pi / 180.0;
+      end loop;
       accept Identify (Set_Vehicle_No : Positive; Local_Task_Id : out Task_Id)
       do
          Vehicle_No    := Set_Vehicle_No;
          Local_Task_Id := Current_Task;
       end Identify;
-      Vehicle_Set := Vehicle_No mod No_Of_Vehicle_Sets;
-      Theta       := Real (Vehicle_No mod 180) * (Pi / 90.0);
-      Phi         := Real (Vehicle_Set) * (Pi / Real (No_Of_Vehicle_Sets));
+      Vehicle_Set   := Vehicle_No mod No_Of_Vehicle_Sets;
+      Radians_Index := Degrees (Vehicle_No * Initial_Degree_Step);
+      Theta         := Radians_List (Radians_Index);
+      Phi := Radians_List (Degrees (Vehicle_Set * (180 / No_Of_Vehicle_Sets)));
 
       select
          Flight_Termination.Stop;
@@ -84,7 +90,8 @@ package body Vehicle_Task_Type is
 
                if Current_Charge < Low_Battery or else Messages_Waiting then
                   -- Would a blocking operation for low Low_Battery emergency
-                  -- case
+                  -- TODO Edge case : If You don't receive any record here
+                  -- after low battery ?
                   Receive (Received_Record);
                   -- Update Local Record to latest value
                   if Local_Record.Message_Time < Received_Record.Message_Time
@@ -98,7 +105,7 @@ package body Vehicle_Task_Type is
                   else
                      Spiral_Orbit (Current_Charge);
                   end if;
-                  -- Propagate the signal further
+                  -- Propagate the latest signal
                   Send (Local_Record);
                else
                   -- Move normally and provide graceful degradation in case
