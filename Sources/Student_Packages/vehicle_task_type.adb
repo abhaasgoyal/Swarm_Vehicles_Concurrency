@@ -1,5 +1,3 @@
--- Suggestions for packages which might be useful:
-
 with Ada.Real_Time;         use Ada.Real_Time;
 with Exceptions;            use Exceptions;
 with Real_Type;             use Real_Type;
@@ -10,40 +8,39 @@ with Swarm_Structures_Base; use Swarm_Structures_Base;
 with Ada.Numerics;          use Ada.Numerics;
 
 package body Vehicle_Task_Type is
+   use Real_Elementary_Functions;
+   No_Of_Vehicle_Sets : constant Positive        := 4;
+   Low_Battery        : constant Vehicle_Charges := 0.3;
+   Norm_Radius        : constant Vehicle_Charges := 0.3;
+   Low_Throttle       : constant Throttle_T      := 0.4;
 
    task body Vehicle_Task is
       Local_Record : Inter_Vehicle_Messages;
       Vehicle_No   : Positive;
       -- Phi is w.r.t z-axis and Theta w.r.t xy-plane
-      Phi   : Real := 0.0;
-      Theta : Real := 0.0;
-      -- Vehicle Set (0 - 3)
-      Vehicle_Set        : Natural;
-      No_Of_Vehicle_Sets : constant Positive        := 4;
-      Low_Battery        : constant Vehicle_Charges := 0.3;
-      Norm_Radius        : constant Vehicle_Charges := 0.3;
+      Phi         : Real := 0.0;
+      Theta       : Real := 0.0;
+      Vehicle_Set : Natural;
 
-      function Vector_Distance
-        (V_1 : Vector_3D; V_2 : Vector_3D) return Real is
+      function Vector_Distance (V_1, V_2 : Vector_3D) return Real is
         (abs (V_1 - V_2));
 
       -- Could have placed in the declared block but definining the procedures
       -- everytime in define block may slow down the program
-      function Sin (X : Real) return Real renames
-        Real_Elementary_Functions.Sin;
-      function Cos (X : Real) return Real renames
-        Real_Elementary_Functions.Cos;
       function Y_Axis_Rotate (A : Vector_3D) return Vector_3D is
         ((A (x) * Cos (Phi) - A (y) * Sin (Phi),
           A (x) * Sin (Phi) + A (y) * Cos (Phi), A (z)));
       function Orbit_Position (R : Real) return Vector_3D is
         (Y_Axis_Rotate
-           ((Local_Record.Globe_Pos (x) + R * Sin (Theta),
-             Local_Record.Globe_Pos (y),
-             Local_Record.Globe_Pos (z) + R * Cos (Theta))));
+           (Local_Record.Globe_Pos + (R * Sin (Theta), 0.0, R * Cos (Theta))));
       procedure Spiral_Orbit (Charge : Vehicle_Charges) is
       begin
-         Set_Throttle (0.4);
+         if Theta < 2.0 * Pi then
+            Theta := Theta + Pi / 180.0;
+         else
+            Theta := Pi / 180.0;
+         end if;
+         Set_Throttle (Low_Throttle);
          Set_Destination (Orbit_Position (Real (Norm_Radius * Charge)));
       end Spiral_Orbit;
    begin
@@ -64,8 +61,6 @@ package body Vehicle_Task_Type is
 
          Outer_task_loop :
          loop
-            Theta := Theta + Pi / 180.0;
-
             declare
                Globes : constant Energy_Globes := Energy_Globes_Around;
                Closest_Globe   : Vector_3D;
@@ -88,18 +83,13 @@ package body Vehicle_Task_Type is
                end if;
 
                if Current_Charge < Low_Battery or else Messages_Waiting then
-                  -- Would a blocking operation for low battery since on
-                  -- emergency case
+                  -- Would a blocking operation for low Low_Battery emergency
+                  -- case
                   Receive (Received_Record);
-                  -- Update Records to latest value
-                  if To_Duration
-                      (Received_Record.Message_Time -
-                       Local_Record.Message_Time) >
-                    0.0
+                  -- Update Local Record to latest value
+                  if Local_Record.Message_Time < Received_Record.Message_Time
                   then
                      Local_Record := Received_Record;
-                  else
-                     Received_Record := Local_Record;
                   end if;
                   -- Vehicle destination decision
                   if Current_Charge < Low_Battery then
@@ -109,10 +99,10 @@ package body Vehicle_Task_Type is
                      Spiral_Orbit (Current_Charge);
                   end if;
                   -- Propagate the signal further
-                  Send (Received_Record);
+                  Send (Local_Record);
                else
                   -- Move normally and provide graceful degradation in case
-                  -- globe dies and no incoming calls
+                  -- globe dies and no incoming calls are present
                   Spiral_Orbit (Current_Charge);
                end if;
             end;
