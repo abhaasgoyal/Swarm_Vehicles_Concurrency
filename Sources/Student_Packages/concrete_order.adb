@@ -29,6 +29,7 @@ package body Concrete_Order is
       Data_Idx  : Data_Index := Data_Index'First;
       Temp_Data : List (Data_Index);
    begin
+
       for T of Temp_Idx loop
          if Data (Data_Idx) < Input_Data (Input_Idx) then
             T        := Data (Data_Idx);
