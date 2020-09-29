@@ -6,10 +6,10 @@ package body Concrete_Order is
    -- Typesafe find and replace
    Last : Natural renames Data (No_Of_Elements);
 
-   function Add_To_List (E : Natural) return Boolean is
+   procedure Add_To_List (E : Natural) is
    begin
       if List_Full then
-         return False;
+         return;
       end if;
       for I in 1 .. No_Of_Elements + 1 loop
          if Data (I) = 0 then
@@ -17,7 +17,6 @@ package body Concrete_Order is
          end if;
       end loop;
       No_Of_Elements := No_Of_Elements + 1;
-      return True;
    end Add_To_List;
 
    -- Additional functions
@@ -43,6 +42,10 @@ package body Concrete_Order is
             if Data (D_Idx) < Input_Data (I_Idx) then
                T     := Data (D_Idx);
                D_Idx := D_Idx + 1;
+            elsif Data (D_Idx) = Input_Data (I_Idx) then
+               T     := Data (D_Idx);
+               D_Idx := D_Idx + 1;
+               I_Idx := I_Idx + 1;
             else
                T     := Input_Data (I_Idx);
                I_Idx := I_Idx + 1;

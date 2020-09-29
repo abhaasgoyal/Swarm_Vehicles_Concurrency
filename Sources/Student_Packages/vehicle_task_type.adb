@@ -30,8 +30,8 @@ package body Vehicle_Task_Type is
       return Temp_Arr;
    end Initialize_Radian_Array;
 
-   Radians_List : constant Angles_List := Initialize_Radian_Array;
-
+   Radians_List      : constant Angles_List := Initialize_Radian_Array;
+   Invalid_Globe_Pos : constant Vector_3D   := (0.0, 0.0, 0.0);
    task body Vehicle_Task is
       Radians_Ix   : Degrees;
       Local_Record : Inter_Vehicle_Messages;
@@ -42,7 +42,6 @@ package body Vehicle_Task_Type is
       Theta : Real;
       package Local_List is new Concrete_Order (Abstract_List);
       package Local_List2 is new Concrete_Order (Abstract_List);
-      use Local_List;
       function Distance (V_1, V_2 : Vector_3D) return Real is
         (abs (V_1 - V_2));
 
@@ -60,10 +59,8 @@ package body Vehicle_Task_Type is
          Set_Throttle (Low_Throttle);
          Set_Destination (Orbit_Position (Real (Norm_Radius * Charge)));
       end Spiral_Orbit;
-      Temp  : Boolean;
-      Temp3 : List (Data_Index);
-      Temp2 : Boolean;
-      type Range_Type is range 1 .. 10;
+      --  Temp  : Boolean;
+      --  Temp3 : Local_List.List (Data_Index); Temp2 : Boolean;
    begin
       accept Identify (Set_Vehicle_No : Positive; Local_Task_Id : out Task_Id)
       do
@@ -74,24 +71,29 @@ package body Vehicle_Task_Type is
       Radians_Ix  := Degrees (Vehicle_No * Initial_Degree_Step);
       Theta       := Radians_List (Radians_Ix);
       Phi := Radians_List (Degrees (Vehicle_Set * (180 / No_Of_Vehicle_Sets)));
-      Temp        := Local_List.Add_To_List (20);
-      Temp        := Local_List.Add_To_List (40);
-      Temp        := Local_List.Add_To_List (44);
-      Temp        := Local_List.Add_To_List (45);
-      Temp2       := Local_List2.Add_To_List (50);
-      Temp2       := Local_List2.Add_To_List (60);
+      --  Temp := Local_List.Add_To_List (20); Temp := Local_List.Add_To_List
+      --  (40); Temp := Local_List.Add_To_List (44); Temp :=
+      --  Local_List.Add_To_List (45); Temp2 := Local_List2.Add_To_List
+      --  (50); Temp2 := Local_List2.Add_To_List (60);
 
 --      Put_Line (Natural'Image (Local_List.Read_List (1)));
---      Local_List2.Write_List (Local_List2.List (Local_List.Read_List));
+      Local_List2.Write_List (Local_List2.List (Local_List.Read_List));
 --      Put_Line (Natural'Image (Local_List2.Read_List (6)));
 --      Temp3 := Local_List.List (Local_List2.Read_List);
 --      Put_Line (Natural'Image (Temp3 (5)));
 
-      Temp3 := Local_List.Max_Union (Local_List.List (Local_List2.Read_List));
-      Local_List2.Write_List (Local_List2.List (Temp3));
+      --  Temp3 := Local_List.Max_Union (Local_List.List
+      --  (Local_List2.Read_List)); Local_List2.Write_List
+      --  (Local_List2.List (Temp3));
 
-      Put_Line (Natural'Image (Local_List2.Read_List (6)));
+      --  Put_Line (Natural'Image (Local_List2.Read_List (4)));
 
+      -- Uncomment when important
+      --  Local_List.Add_To_List (Vehicle_No); Send
+      --    ((Message_Type => Type_Y, Globe_Pos => Invalid_Globe_Pos,
+      --      Message_Time => Clock, List_Full_Time => Time_First,
+      --      Vehicle_List => Temp_List.List (Local_List.Read_List),
+      --      Vehicle_No   => Vehicle_No));
       select
          Flight_Termination.Stop;
 
@@ -103,7 +105,8 @@ package body Vehicle_Task_Type is
                Globes : constant Energy_Globes := Energy_Globes_Around;
                Closest_Globe   : Vector_3D;
                Received_Record : Inter_Vehicle_Messages;
-               package Received_List is new Concrete_Order (Abstract_List);
+               package Rec_L is new Concrete_Order (Abstract_List);
+               use Rec_L;
             begin
 
                if Globes'Length > 0 then
@@ -116,8 +119,10 @@ package body Vehicle_Task_Type is
                      end if;
                      -- Propagate the position of the globe
                      Send
-                       ((G.Position, Clock, Local_Record.List_Full_Time,
-                         Temp_List.List (Local_List.Read_List), Vehicle_No));
+                       ((Message_Type => Type_X, Globe_Pos => G.Position,
+                         Message_Time => Clock, List_Full_Time => Time_First,
+                         Vehicle_List => Temp_List.List (Local_List.Read_List),
+                         Vehicle_No   => Vehicle_No));
                      exit;
                   end loop;
                   Local_Record.Message_Time := Clock;
@@ -130,20 +135,68 @@ package body Vehicle_Task_Type is
                   -- after low battery it goes on idle mode but do we want
                   -- to move spirally?
                   Receive (Received_Record);
-                  -- Update Local Record to latest value
-                  if Local_Record.Message_Time < Received_Record.Message_Time
-                  then
-                     Local_Record := Received_Record;
-                  end if;
-                  -- Vehicle destination decision
-                  if Current_Charge < Low_Battery then
-                     Set_Throttle (Full_Throttle);
-                     Set_Destination (Local_Record.Globe_Pos);
+                  if Received_Record.Message_Type = Type_Y then
+                     Rec_L.Write_List (List (Received_Record.Vehicle_List));
+                     if Rec_L.List_Full then
+                        if Local_List.List_Full then
+                           if Received_Record.List_Full_Time <
+                             Local_Record.List_Full_Time
+                           then
+                              Local_List.Write_List
+                                (Local_List.List (Rec_L.Read_List));
+                           end if;
+                        else
+                           Local_List.Write_List
+                             (Local_List.List (Rec_L.Read_List));
+                        end if;
+                        Send
+                          ((Message_Type   => Type_Y,
+                            Globe_Pos      => Invalid_Globe_Pos,
+                            Message_Time   => Clock,
+                            List_Full_Time => Local_Record.List_Full_Time,
+                            Vehicle_List   =>
+                              Temp_List.List (Local_List.Read_List),
+                            Vehicle_No => Vehicle_No));
+                     else
+                        Local_List.Write_List
+                          (Local_List.Max_Union
+                             (Local_List.List (Local_List2.Read_List)));
+                        if Local_List.List_Full then
+                           Send
+                             ((Message_Type => Type_Y,
+                               Globe_Pos    => Invalid_Globe_Pos,
+                               Message_Time => Clock, List_Full_Time => Clock,
+                               Vehicle_List =>
+                                 Temp_List.List (Local_List.Read_List),
+                               Vehicle_No => Vehicle_No));
+                        else
+                           Send
+                             ((Message_Type   => Type_Y,
+                               Globe_Pos      => Invalid_Globe_Pos,
+                               Message_Time   => Clock,
+                               List_Full_Time => Time_First,
+                               Vehicle_List   =>
+                                 Temp_List.List (Local_List.Read_List),
+                               Vehicle_No => Vehicle_No));
+                        end if;
+                     end if;
+                     -- Update Local Record to latest value
                   else
-                     Spiral_Orbit (Current_Charge);
+                     if Local_Record.Message_Time <
+                       Received_Record.Message_Time
+                     then
+                        Local_Record := Received_Record;
+                     end if;
+                     -- Vehicle destination decision
+                     if Current_Charge < Low_Battery then
+                        Set_Throttle (Full_Throttle);
+                        Set_Destination (Local_Record.Globe_Pos);
+                     else
+                        Spiral_Orbit (Current_Charge);
+                     end if;
+                     -- Propagate the latest signal
+                     Send (Local_Record);
                   end if;
-                  -- Propagate the latest signal
-                  Send (Local_Record);
                else
                   -- Move normally and provide graceful degradation in case
                   -- globe dies and no incoming calls are present

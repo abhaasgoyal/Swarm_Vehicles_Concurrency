@@ -7,11 +7,12 @@ with Concrete_Order;
 package Vehicle_Message_Type is
    package Abstract_List is new Ordered_Bounded_List
      (Max_Length => Target_No_of_Elements);
-
+   type Inter_Message_Type is (Type_X, Type_Y);
    package Temp_List is new Concrete_Order (Abstract_List);
    use Temp_List;
    use Abstract_List;
    type Inter_Vehicle_Messages is record
+      Message_Type   : Inter_Message_Type;
       Globe_Pos      : Vector_3D;
       Message_Time   : Time;
       List_Full_Time : Time := Time_First;
