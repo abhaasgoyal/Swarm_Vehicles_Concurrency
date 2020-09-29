@@ -16,8 +16,8 @@ pragma Elaborate_All (Swarm_Configurations);
 package Swarm_Configuration is
 
 -----------------------------------------------------------------------------
-   Configuration : Configurations := Single_Globe_In_Orbit;
-   -- valid Configurations are (Single_Globe_In_Orbit, Dual_Globes_In_Orbit,
+   Configuration : Configurations := Random_Globes_In_Orbits;
+   -- Valid Configurations are (Single_Globe_In_Orbit, Dual_Globes_In_Orbit,
    -- Dual_Globes_In_Orbit_Fast, Random_Globes_In_Orbits, Globe_Grid_In_Centre,
    -- Globe_Grid_Drifting)
 -----------------------------------------------------------------------------

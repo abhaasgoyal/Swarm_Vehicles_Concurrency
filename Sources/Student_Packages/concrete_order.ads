@@ -9,9 +9,8 @@ package Concrete_Order is
 
    procedure Add_To_List (E : Natural);
    function List_Full return Boolean;
-   function Last_Element return Natural;
    function Read_List return List;
    procedure Write_List (Input_Data : List);
    function Found_In_List (E : Natural) return Boolean;
-   function Max_Union (Input_Data : List) return List;
+   procedure Max_Union (Input_Data : List);
 end Concrete_Order;

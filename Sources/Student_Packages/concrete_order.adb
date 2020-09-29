@@ -2,7 +2,6 @@ package body Concrete_Order is
    No_Of_Elements : Natural range 0 .. Max_Length := 0;
 
    -- Typesafe find and replace
-   Last : Natural renames Data (No_Of_Elements);
 
    procedure Add_To_List (E : Natural) is
    begin
@@ -14,11 +13,12 @@ package body Concrete_Order is
    function Found_In_List (E : Natural) return Boolean is
      (for some D of Read_List => D = E);
 
-   function Max_Union (Input_Data : List) return List is
+   procedure Max_Union (Input_Data : List) is
       I_Idx     : Data_Index        := 1;
       D_Idx     : Data_Index        := 1;
       Temp_Data : List (Data_Index) := (others => (0));
    begin
+      No_Of_Elements := 0;
       Merge :
       for T of Temp_Data loop
          if Input_Data (I_Idx) = 0 and then Data (D_Idx) = 0 then
@@ -42,16 +42,14 @@ package body Concrete_Order is
                I_Idx := I_Idx + 1;
             end if;
          end if;
-
+         No_Of_Elements := No_Of_Elements + 1;
       end loop Merge;
 --      for T of Temp_Data loop
 --       Put (T);
 --      end loop;
-      return Temp_Data;
+      Data := Temp_Data;
    end Max_Union;
    function List_Full return Boolean is (No_Of_Elements = Max_Length);
-
-   function Last_Element return Natural is (Last);
 
    -- Ada recognized 1 .. 0 in No_Of_Elements
    function Read_List return List is (Data);

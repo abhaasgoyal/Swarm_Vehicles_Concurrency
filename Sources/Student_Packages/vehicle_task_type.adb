@@ -12,11 +12,12 @@ package body Vehicle_Task_Type is
    use Real_Elementary_Functions;
    use Abstract_List;
    -- Dials to adjust for optimization
-   No_Of_Vehicle_Sets  : constant Positive        := 4;
-   Low_Battery         : constant Vehicle_Charges := 0.4;
-   Norm_Radius         : constant Vehicle_Charges := 0.3;
-   Low_Throttle        : constant Throttle_T      := 0.3;
-   Initial_Degree_Step : constant Positive        := 2;
+   No_Of_Vehicle_Sets      : constant Positive        := 4;
+   Low_Battery             : constant Vehicle_Charges := 0.4;
+   Norm_Radius             : constant Vehicle_Charges := 0.3;
+   Low_Throttle            : constant Throttle_T      := 0.3;
+   Initial_Degree_Step     : constant Positive        := 2;
+   Consensus_Time_Interval : constant Duration        := 60.0;
 
    type Degrees is mod 360;
    type Angles_List is array (Degrees) of Real;
@@ -142,9 +143,8 @@ package body Vehicle_Task_Type is
                Received_Record : Inter_Vehicle_Messages;
                package Rec_L is new Concrete_Order (Abstract_List);
                use Rec_L;
-               Check_Same_List : Local_List.List (Data_Index);
+--               Check_Same_List : Local_List.List (Data_Index);
             begin
-
                if Globes'Length > 0 then
                   Closest_Globe := Globes (1).Position;
                   for G of Globes loop
@@ -201,16 +201,13 @@ package body Vehicle_Task_Type is
                               Vehicle_List   =>
                                 Temp_List.List (Local_List.Read_List)));
                      else
-                        Check_Same_List :=
-                          Local_List.Max_Union
-                            (Local_List.List (Rec_L.Read_List));
+                        Local_List.Max_Union
+                          (Local_List.List (Rec_L.Read_List));
                         -- If the local list wasn't changed ??!
                         --  Temp3 :=
                         --    Local_List.Max_Union
                         --      (Local_List.List (Local_List2.Read_List));
                         --  Local_List2.Write_List (Local_List2.List (Temp3));
-                        Local_List.Write_List
-                          (Local_List.List (Check_Same_List));
                         if Local_List.List_Full then
                            Send
                              (Send_Type_Y
@@ -263,27 +260,17 @@ package body Vehicle_Task_Type is
                   Spiral_Orbit (Current_Charge);
                end if;
             end;
-            if To_Duration (Clock - Start_Time) > 60.0 then
+            if To_Duration (Clock - Start_Time) > Consensus_Time_Interval then
                Start_Time := Clock;
                Print_Stuff.Print_Arr
                  (Temp_List.List (Local_List.Read_List), Vehicle_No);
                if not Local_List.Found_In_List (Vehicle_No) then
-                  while To_Duration (Clock - Start_Time) <
-                    (Duration (Vehicle_No))
                   loop
+                     -- Graceful Death of Vehicle (Shake @ Position)
                      Spiral_Orbit (Current_Charge);
                   end loop;
-                  loop
-                     Set_Throttle (1.0);
-                     Set_Destination ((Real (Vehicle_No), 0.0, 0.0));
-                  end loop;
                end if;
-               Local_List.Write_List (Local_List.List (Invalid_List));
-               Local_List.Add_To_List (Vehicle_No);
-               Send
-                 (Send_Type_Y
-                    (List_Full_Time => Time_First,
-                     Vehicle_List   => Temp_List.List (Local_List.Read_List)));
+               -- Could do muliple iterations but problemo
             end if;
             Wait_For_Next_Physics_Update;
          end loop Outer_task_loop;
