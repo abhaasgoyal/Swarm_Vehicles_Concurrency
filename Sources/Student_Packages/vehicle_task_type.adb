@@ -32,10 +32,12 @@ package body Vehicle_Task_Type is
 
    Radians_List       : constant Angles_List := Initialize_Radian_Array;
    Invalid_Globe_Pos  : constant Vector_3D := (0.0, 0.0, 0.0);
-   Invalid_Time       : constant Time                        := Time_First;
+   Invalid_Time       : constant Time                        := Time_Last;
    Invalid_List       : constant Temp_List.List (Data_Index) := (others => 0);
    Invalid_Vehicle_No : constant Positive                    := 1;
 
+   -- Printing the lookup table for all vehicles after stipulated time for
+   -- consensus
    protected Print_Stuff is
       procedure Print_Arr (Input : Temp_List.List; Vehicle_No : Positive);
    end Print_Stuff;
@@ -60,6 +62,7 @@ package body Vehicle_Task_Type is
       Phi   : Real;
       Theta : Real;
       package Local_List is new Concrete_Order (Abstract_List);
+      -- use type Local_List.List;
       function Distance (V_1, V_2 : Vector_3D) return Real is
         (abs (V_1 - V_2));
       function Send_Type_X
@@ -139,6 +142,7 @@ package body Vehicle_Task_Type is
                Received_Record : Inter_Vehicle_Messages;
                package Rec_L is new Concrete_Order (Abstract_List);
                use Rec_L;
+               Check_Same_List : Local_List.List (Data_Index);
             begin
 
                if Globes'Length > 0 then
@@ -169,7 +173,6 @@ package body Vehicle_Task_Type is
                      Rec_L.Write_List (List (Received_Record.Vehicle_List));
                      if Rec_L.List_Full then
                         if Local_List.List_Full then
-                           -- Why death2 isn't printed
                            if Received_Record.List_Full_Time <
                              Local_Record.List_Full_Time
                            then
@@ -177,21 +180,37 @@ package body Vehicle_Task_Type is
                                 (Local_List.List (Rec_L.Read_List));
                               Local_Record.List_Full_Time :=
                                 Received_Record.List_Full_Time;
-                              Put_Line ("Death2");
                            else
-                              Local_List.Write_List
-                                (Local_List.List (Rec_L.Read_List));
+                              null;
                            end if;
+                        else
+                           Local_List.Write_List
+                             (Local_List.List (Rec_L.Read_List));
+                           Local_Record.List_Full_Time :=
+                             Received_Record.List_Full_Time;
                         end if;
                         Send
                           (Send_Type_Y
                              (List_Full_Time => Local_Record.List_Full_Time,
                               Vehicle_List   =>
                                 Temp_List.List (Local_List.Read_List)));
+                     elsif Local_List.List_Full then
+                        Send
+                          (Send_Type_Y
+                             (List_Full_Time => Local_Record.List_Full_Time,
+                              Vehicle_List   =>
+                                Temp_List.List (Local_List.Read_List)));
                      else
+                        Check_Same_List :=
+                          Local_List.Max_Union
+                            (Local_List.List (Rec_L.Read_List));
+                        -- If the local list wasn't changed ??!
+                        --  Temp3 :=
+                        --    Local_List.Max_Union
+                        --      (Local_List.List (Local_List2.Read_List));
+                        --  Local_List2.Write_List (Local_List2.List (Temp3));
                         Local_List.Write_List
-                          (Local_List.Max_Union
-                             (Local_List.List (Rec_L.Read_List)));
+                          (Local_List.List (Check_Same_List));
                         if Local_List.List_Full then
                            Send
                              (Send_Type_Y
@@ -205,6 +224,21 @@ package body Vehicle_Task_Type is
                                  Vehicle_List   =>
                                    Temp_List.List (Local_List.Read_List)));
                         end if;
+                        --  if Local_List.List_Full then
+                        --     Send
+                        --       (Send_Type_Y
+                        --          (List_Full_Time => Clock,
+                        --           Vehicle_List   =>
+                        --             Temp_List.List (Local_List.Read_List)));
+                        --  else
+                        --     Local_List.Write_List
+                        --       (Local_List.List (Check_Same_List));
+                        --     Send
+                        --       (Send_Type_Y
+                  --          (List_Full_Time => Local_Record.List_Full_Time,
+                        --           Vehicle_List   =>
+                        --             Temp_List.List (Local_List.Read_List)));
+                        --  end if;
                      end if;
                      -- Update Local Record to latest value
                   else
@@ -229,7 +263,7 @@ package body Vehicle_Task_Type is
                   Spiral_Orbit (Current_Charge);
                end if;
             end;
-            if To_Duration (Clock - Start_Time) > 120.0 then
+            if To_Duration (Clock - Start_Time) > 60.0 then
                Start_Time := Clock;
                Print_Stuff.Print_Arr
                  (Temp_List.List (Local_List.Read_List), Vehicle_No);
@@ -244,6 +278,12 @@ package body Vehicle_Task_Type is
                      Set_Destination ((Real (Vehicle_No), 0.0, 0.0));
                   end loop;
                end if;
+               Local_List.Write_List (Local_List.List (Invalid_List));
+               Local_List.Add_To_List (Vehicle_No);
+               Send
+                 (Send_Type_Y
+                    (List_Full_Time => Time_First,
+                     Vehicle_List   => Temp_List.List (Local_List.Read_List)));
             end if;
             Wait_For_Next_Physics_Update;
          end loop Outer_task_loop;

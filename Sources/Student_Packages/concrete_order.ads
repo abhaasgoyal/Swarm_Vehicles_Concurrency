@@ -1,5 +1,4 @@
 with Ordered_Bounded_List;
-with Swarm_Size; use Swarm_Size;
 
 generic
    with package Ordered_Instance is new Ordered_Bounded_List (<>);

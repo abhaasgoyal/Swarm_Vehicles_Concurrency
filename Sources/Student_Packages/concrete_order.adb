@@ -1,5 +1,3 @@
-with Ada.Integer_Text_IO; use Ada.Integer_Text_IO;
-with Ada.Text_IO;         use Ada.Text_IO;
 package body Concrete_Order is
    No_Of_Elements : Natural range 0 .. Max_Length := 0;
 
@@ -8,15 +6,8 @@ package body Concrete_Order is
 
    procedure Add_To_List (E : Natural) is
    begin
-      if List_Full then
-         return;
-      end if;
-      for I in 1 .. No_Of_Elements + 1 loop
-         if Data (I) = 0 then
-            Data (I) := E;
-         end if;
-      end loop;
-      No_Of_Elements := No_Of_Elements + 1;
+      Data (1)       := E;
+      No_Of_Elements := 1;
    end Add_To_List;
 
    -- Additional functions

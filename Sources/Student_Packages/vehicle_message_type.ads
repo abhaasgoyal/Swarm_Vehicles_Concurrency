@@ -1,7 +1,6 @@
 with Ada.Real_Time; use Ada.Real_Time;
 with Vectors_3D;    use Vectors_3D;
 with Swarm_Size;    use Swarm_Size;
-with Real_Type;     use Real_Type;
 with Ordered_Bounded_List;
 with Concrete_Order;
 package Vehicle_Message_Type is
