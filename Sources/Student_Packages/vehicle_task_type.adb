@@ -14,8 +14,8 @@ package body Vehicle_Task_Type is
    -- Dials to adjust for optimization
    No_Of_Vehicle_Sets  : constant Positive        := 4;
    Low_Battery         : constant Vehicle_Charges := 0.4;
-   Norm_Radius         : constant Vehicle_Charges := 0.25;
-   Low_Throttle        : constant Throttle_T      := 0.4;
+   Norm_Radius         : constant Vehicle_Charges := 0.3;
+   Low_Throttle        : constant Throttle_T      := 0.3;
    Initial_Degree_Step : constant Positive        := 2;
 
    type Degrees is mod 360;
@@ -30,9 +30,28 @@ package body Vehicle_Task_Type is
       return Temp_Arr;
    end Initialize_Radian_Array;
 
-   Radians_List      : constant Angles_List := Initialize_Radian_Array;
-   Invalid_Globe_Pos : constant Vector_3D   := (0.0, 0.0, 0.0);
+   Radians_List       : constant Angles_List := Initialize_Radian_Array;
+   Invalid_Globe_Pos  : constant Vector_3D := (0.0, 0.0, 0.0);
+   Invalid_Time       : constant Time                        := Time_First;
+   Invalid_List       : constant Temp_List.List (Data_Index) := (others => 0);
+   Invalid_Vehicle_No : constant Positive                    := 1;
+
+   protected Print_Stuff is
+      procedure Print_Arr (Input : Temp_List.List; Vehicle_No : Positive);
+   end Print_Stuff;
+   protected body Print_Stuff is
+      procedure Print_Arr (Input : Temp_List.List; Vehicle_No : Positive) is
+      begin
+         Put ("For Vehicle" & Natural'Image (Vehicle_No) & " : ");
+         for I of Input loop
+            Put (Natural'Image (I));
+         end loop;
+         Put_Line ("");
+      end Print_Arr;
+   end Print_Stuff;
+
    task body Vehicle_Task is
+      Start_Time   : Time := Clock;
       Radians_Ix   : Degrees;
       Local_Record : Inter_Vehicle_Messages;
       Vehicle_No   : Positive;
@@ -41,10 +60,23 @@ package body Vehicle_Task_Type is
       Phi   : Real;
       Theta : Real;
       package Local_List is new Concrete_Order (Abstract_List);
-      package Local_List2 is new Concrete_Order (Abstract_List);
       function Distance (V_1, V_2 : Vector_3D) return Real is
         (abs (V_1 - V_2));
+      function Send_Type_X
+        (Globe_Pos : Vector_3D; Message_Time : Time)
+         return Inter_Vehicle_Messages is
 
+        ((Message_Type => Type_X, Globe_Pos => Globe_Pos,
+          Message_Time => Message_Time, List_Full_Time => Invalid_Time,
+          Vehicle_List => Temp_List.List (Invalid_List),
+          Vehicle_No   => Invalid_Vehicle_No));
+      function Send_Type_Y
+        (Vehicle_List : Temp_List.List; List_Full_Time : Time)
+         return Inter_Vehicle_Messages is
+
+        ((Message_Type => Type_Y, Globe_Pos => Invalid_Globe_Pos,
+          Message_Time => Invalid_Time, List_Full_Time => List_Full_Time,
+          Vehicle_List => Vehicle_List, Vehicle_No => Invalid_Vehicle_No));
       -- Functions for detemining next position of orbit
       function Y_Axis_Rotate (A : Vector_3D) return Vector_3D is
         ((A (x) * Cos (Phi) - A (y) * Sin (Phi),
@@ -77,7 +109,7 @@ package body Vehicle_Task_Type is
       --  (50); Temp2 := Local_List2.Add_To_List (60);
 
 --      Put_Line (Natural'Image (Local_List.Read_List (1)));
-      Local_List2.Write_List (Local_List2.List (Local_List.Read_List));
+      --    Local_List2.Write_List (Local_List2.List (Local_List.Read_List));
 --      Put_Line (Natural'Image (Local_List2.Read_List (6)));
 --      Temp3 := Local_List.List (Local_List2.Read_List);
 --      Put_Line (Natural'Image (Temp3 (5)));
@@ -89,11 +121,11 @@ package body Vehicle_Task_Type is
       --  Put_Line (Natural'Image (Local_List2.Read_List (4)));
 
       -- Uncomment when important
-      --  Local_List.Add_To_List (Vehicle_No); Send
-      --    ((Message_Type => Type_Y, Globe_Pos => Invalid_Globe_Pos,
-      --      Message_Time => Clock, List_Full_Time => Time_First,
-      --      Vehicle_List => Temp_List.List (Local_List.Read_List),
-      --      Vehicle_No   => Vehicle_No));
+      Local_List.Add_To_List (Vehicle_No);
+      Send
+        (Send_Type_Y
+           (List_Full_Time => Time_First,
+            Vehicle_List   => Temp_List.List (Local_List.Read_List)));
       select
          Flight_Termination.Stop;
 
@@ -119,10 +151,8 @@ package body Vehicle_Task_Type is
                      end if;
                      -- Propagate the position of the globe
                      Send
-                       ((Message_Type => Type_X, Globe_Pos => G.Position,
-                         Message_Time => Clock, List_Full_Time => Time_First,
-                         Vehicle_List => Temp_List.List (Local_List.Read_List),
-                         Vehicle_No   => Vehicle_No));
+                       (Send_Type_X
+                          (Globe_Pos => G.Position, Message_Time => Clock));
                      exit;
                   end loop;
                   Local_Record.Message_Time := Clock;
@@ -139,45 +169,41 @@ package body Vehicle_Task_Type is
                      Rec_L.Write_List (List (Received_Record.Vehicle_List));
                      if Rec_L.List_Full then
                         if Local_List.List_Full then
+                           -- Why death2 isn't printed
                            if Received_Record.List_Full_Time <
                              Local_Record.List_Full_Time
                            then
                               Local_List.Write_List
                                 (Local_List.List (Rec_L.Read_List));
+                              Local_Record.List_Full_Time :=
+                                Received_Record.List_Full_Time;
+                              Put_Line ("Death2");
+                           else
+                              Local_List.Write_List
+                                (Local_List.List (Rec_L.Read_List));
                            end if;
-                        else
-                           Local_List.Write_List
-                             (Local_List.List (Rec_L.Read_List));
                         end if;
                         Send
-                          ((Message_Type   => Type_Y,
-                            Globe_Pos      => Invalid_Globe_Pos,
-                            Message_Time   => Clock,
-                            List_Full_Time => Local_Record.List_Full_Time,
-                            Vehicle_List   =>
-                              Temp_List.List (Local_List.Read_List),
-                            Vehicle_No => Vehicle_No));
+                          (Send_Type_Y
+                             (List_Full_Time => Local_Record.List_Full_Time,
+                              Vehicle_List   =>
+                                Temp_List.List (Local_List.Read_List)));
                      else
                         Local_List.Write_List
                           (Local_List.Max_Union
-                             (Local_List.List (Local_List2.Read_List)));
+                             (Local_List.List (Rec_L.Read_List)));
                         if Local_List.List_Full then
                            Send
-                             ((Message_Type => Type_Y,
-                               Globe_Pos    => Invalid_Globe_Pos,
-                               Message_Time => Clock, List_Full_Time => Clock,
-                               Vehicle_List =>
-                                 Temp_List.List (Local_List.Read_List),
-                               Vehicle_No => Vehicle_No));
+                             (Send_Type_Y
+                                (List_Full_Time => Clock,
+                                 Vehicle_List   =>
+                                   Temp_List.List (Local_List.Read_List)));
                         else
                            Send
-                             ((Message_Type   => Type_Y,
-                               Globe_Pos      => Invalid_Globe_Pos,
-                               Message_Time   => Clock,
-                               List_Full_Time => Time_First,
-                               Vehicle_List   =>
-                                 Temp_List.List (Local_List.Read_List),
-                               Vehicle_No => Vehicle_No));
+                             (Send_Type_Y
+                                (List_Full_Time => Local_Record.List_Full_Time,
+                                 Vehicle_List   =>
+                                   Temp_List.List (Local_List.Read_List)));
                         end if;
                      end if;
                      -- Update Local Record to latest value
@@ -203,6 +229,22 @@ package body Vehicle_Task_Type is
                   Spiral_Orbit (Current_Charge);
                end if;
             end;
+            if To_Duration (Clock - Start_Time) > 120.0 then
+               Start_Time := Clock;
+               Print_Stuff.Print_Arr
+                 (Temp_List.List (Local_List.Read_List), Vehicle_No);
+               if not Local_List.Found_In_List (Vehicle_No) then
+                  while To_Duration (Clock - Start_Time) <
+                    (Duration (Vehicle_No))
+                  loop
+                     Spiral_Orbit (Current_Charge);
+                  end loop;
+                  loop
+                     Set_Throttle (1.0);
+                     Set_Destination ((Real (Vehicle_No), 0.0, 0.0));
+                  end loop;
+               end if;
+            end if;
             Wait_For_Next_Physics_Update;
          end loop Outer_task_loop;
 
