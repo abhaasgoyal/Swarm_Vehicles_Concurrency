@@ -6,9 +6,11 @@ with Vehicle_Interface;     use Vehicle_Interface;
 with Vehicle_Message_Type;  use Vehicle_Message_Type;
 with Swarm_Structures_Base; use Swarm_Structures_Base;
 with Ada.Numerics;          use Ada.Numerics;
-
+with Concrete_Order;
+with Ada.Text_IO;           use Ada.Text_IO;
 package body Vehicle_Task_Type is
    use Real_Elementary_Functions;
+   use Abstract_List;
    -- Dials to adjust for optimization
    No_Of_Vehicle_Sets  : constant Positive        := 4;
    Low_Battery         : constant Vehicle_Charges := 0.4;
@@ -38,7 +40,9 @@ package body Vehicle_Task_Type is
       -- Phi is w.r.t z-axis and Theta w.r.t xy-plane
       Phi   : Real;
       Theta : Real;
-
+      package Local_List is new Concrete_Order (Abstract_List);
+      package Local_List2 is new Concrete_Order (Abstract_List);
+      use Local_List;
       function Distance (V_1, V_2 : Vector_3D) return Real is
         (abs (V_1 - V_2));
 
@@ -56,6 +60,10 @@ package body Vehicle_Task_Type is
          Set_Throttle (Low_Throttle);
          Set_Destination (Orbit_Position (Real (Norm_Radius * Charge)));
       end Spiral_Orbit;
+      Temp  : Boolean;
+      Temp3 : List (Data_Index);
+      Temp2 : Boolean;
+      type Range_Type is range 1 .. 10;
    begin
       accept Identify (Set_Vehicle_No : Positive; Local_Task_Id : out Task_Id)
       do
@@ -66,6 +74,23 @@ package body Vehicle_Task_Type is
       Radians_Ix  := Degrees (Vehicle_No * Initial_Degree_Step);
       Theta       := Radians_List (Radians_Ix);
       Phi := Radians_List (Degrees (Vehicle_Set * (180 / No_Of_Vehicle_Sets)));
+      Temp        := Local_List.Add_To_List (20);
+      Temp        := Local_List.Add_To_List (40);
+      Temp        := Local_List.Add_To_List (44);
+      Temp        := Local_List.Add_To_List (45);
+      Temp2       := Local_List2.Add_To_List (50);
+      Temp2       := Local_List2.Add_To_List (60);
+
+--      Put_Line (Natural'Image (Local_List.Read_List (1)));
+--      Local_List2.Write_List (Local_List2.List (Local_List.Read_List));
+--      Put_Line (Natural'Image (Local_List2.Read_List (6)));
+--      Temp3 := Local_List.List (Local_List2.Read_List);
+--      Put_Line (Natural'Image (Temp3 (5)));
+
+      Temp3 := Local_List.Max_Union (Local_List.List (Local_List2.Read_List));
+      Local_List2.Write_List (Local_List2.List (Temp3));
+
+      Put_Line (Natural'Image (Local_List2.Read_List (6)));
 
       select
          Flight_Termination.Stop;
@@ -78,7 +103,9 @@ package body Vehicle_Task_Type is
                Globes : constant Energy_Globes := Energy_Globes_Around;
                Closest_Globe   : Vector_3D;
                Received_Record : Inter_Vehicle_Messages;
+               package Received_List is new Concrete_Order (Abstract_List);
             begin
+
                if Globes'Length > 0 then
                   Closest_Globe := Globes (1).Position;
                   for G of Globes loop
@@ -88,7 +115,9 @@ package body Vehicle_Task_Type is
                         Closest_Globe := G.Position;
                      end if;
                      -- Propagate the position of the globe
-                     Send ((G.Position, Clock));
+                     Send
+                       ((G.Position, Clock, Local_Record.List_Full_Time,
+                         Temp_List.List (Local_List.Read_List), Vehicle_No));
                      exit;
                   end loop;
                   Local_Record.Message_Time := Clock;
@@ -98,7 +127,8 @@ package body Vehicle_Task_Type is
                if Current_Charge < Low_Battery or else Messages_Waiting then
                   -- Would a blocking operation for low Low_Battery emergency
                   -- TODO Edge case : If You don't receive any record here
-                  -- after low battery ?
+                  -- after low battery it goes on idle mode but do we want
+                  -- to move spirally?
                   Receive (Received_Record);
                   -- Update Local Record to latest value
                   if Local_Record.Message_Time < Received_Record.Message_Time
