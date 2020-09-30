@@ -1,0 +1,80 @@
+\usepackage{pdfpages}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{amsfonts}
+\usepackage{array}
+\usepackage{helvet}
+\usepackage{color}
+\definecolor{myblue}{rgb}{.8, .8, 1}
+\usepackage{empheq}
+\usepackage{tkz-euclide}
+\usepackage{caption}
+
+ \usepackage[margin=0.8in]{geometry}
+\usepackage{pgfplots}
+\pgfplotsset{compat=newest, ticks=none}
+
+\newlength\mytemplen
+\newsavebox\mytempbox
+
+\makeatletter
+\newcommand\mybluebox{%
+    \@ifnextchar[%]
+       {\@mybluebox}%
+       {\@mybluebox[0pt]}}
+
+\def\@mybluebox[#1]{%
+    \@ifnextchar[%]
+       {\@@mybluebox[#1]}%
+       {\@@mybluebox[#1][0pt]}}
+
+\def\@@mybluebox[#1][#2]#3{
+    \sbox\mytempbox{#3}%
+    \mytemplen\ht\mytempbox
+    \advance\mytemplen #1\relax
+    \ht\mytempbox\mytemplen
+    \mytemplen\dp\mytempbox
+    \advance\mytemplen #2\relax
+    \dp\mytempbox\mytemplen
+    \colorbox{myblue}{\hspace{1em}\usebox{\mytempbox}\hspace{1em}}}
+
+\makeatother
+
+\newcommand*\widefbox[1]{\fbox{\hspace{2em}#1\hspace{2em}}}
+
+
+\newenvironment{amatrix}[1]{%
+  \left(\begin{array}{@{}*{#1}{c}|c@{}}
+}{%
+  \end{array}\right)
+}
+\newcommand{\ro}[1]{%
+  \xrightarrow{\mathmakebox[\rowidth]{#1}}%
+}
+
+\newlength{\rowidth}% row operation width
+\AtBeginDocument{\setlength{\rowidth}{4em}}
+
+
+\usepackage[thmmarks,  thref, amsmath]{ntheorem}
+
+\theoremstyle{plain}
+\newtheorem{thm}{Theorem}
+
+\theoremheaderfont{\itshape}
+\theorembodyfont{\upshape}
+\newtheorem{case}{Case}
+
+\theoremstyle{nonumberplain}
+\theoremheaderfont{\scshape}
+\theorembodyfont{\upshape}
+\theoremsymbol{\scshape Q. E. D.}% or\ensuremath{ _{\Box}}, also add \usepackage{amssymb}
+% or O. E. \ensuremath{\Delta} % for Euclid's  ὅπερ ἔδει δεῖξαι
+\theorempostwork{\setcounter{case}{0}}
+\newtheorem{proof}{Proof}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "Assignment"
+%%% End:

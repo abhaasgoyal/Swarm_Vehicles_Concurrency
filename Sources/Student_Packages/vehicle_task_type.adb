@@ -110,10 +110,10 @@ package body Vehicle_Task_Type is
       Local_List.Add_To_List (Vehicle_No);
       -- Uncomment below operation when wanting to implement Stage D This is
       -- the bootstrapper for the stage
-      Send
-        (Send_Type_Y
-           (List_Full_Time => Time_First,
-            Vehicle_List   => Temp_List.List (Local_List.Read_List)));
+      --  Send
+      --    (Send_Type_Y
+      --       (List_Full_Time => Time_First,
+      --        Vehicle_List   => Temp_List.List (Local_List.Read_List)));
       select
          Flight_Termination.Stop;
 
