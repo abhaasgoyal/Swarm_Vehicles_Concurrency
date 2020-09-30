@@ -17,7 +17,7 @@ package body Vehicle_Task_Type is
    Norm_Radius             : constant Vehicle_Charges := 0.3;
    Low_Throttle            : constant Throttle_T      := 0.3;
    Initial_Degree_Step     : constant Positive        := 2;
-   Consensus_Time_Interval : constant Duration        := 60.0;
+   Consensus_Time_Interval : constant Duration        := 180.0;
 
    type Degrees is mod 360;
    type Angles_List is array (Degrees) of Real;
@@ -108,7 +108,8 @@ package body Vehicle_Task_Type is
       Phi := Radians_List (Degrees (Vehicle_Set * (180 / No_Of_Vehicle_Sets)));
 
       Local_List.Add_To_List (Vehicle_No);
-      -- Comment below operation when wanting to implement Stage B/C
+      -- Uncomment below operation when wanting to implement Stage D This is
+      -- the bootstrapper for the stage
       Send
         (Send_Type_Y
            (List_Full_Time => Time_First,
@@ -124,8 +125,8 @@ package body Vehicle_Task_Type is
                Globes : constant Energy_Globes := Energy_Globes_Around;
                Closest_Globe   : Vector_3D;
                Received_Record : Inter_Vehicle_Messages;
-               package Rec_L is new Concrete_Order (Abstract_List);
-               use Rec_L;
+               package Rec_List is new Concrete_Order (Abstract_List);
+               use Rec_List;
 --               Check_Same_List : Local_List.List (Data_Index);
             begin
                if Globes'Length > 0 then
@@ -145,22 +146,18 @@ package body Vehicle_Task_Type is
                   Local_Record.Message_Time := Clock;
                   Local_Record.Globe_Pos    := Closest_Globe;
                end if;
-
                if Current_Charge < Low_Battery or else Messages_Waiting then
-                  -- Would a blocking operation for low Low_Battery emergency
-                  -- TODO Edge case : If You don't receive any record here
-                  -- after low battery it goes on idle mode but do we want
-                  -- to move spirally?
                   Receive (Received_Record);
+                  -- Stage D lookup table case
                   if Received_Record.Message_Type = Type_Y then
-                     Rec_L.Write_List (List (Received_Record.Vehicle_List));
-                     if Rec_L.List_Full then
+                     Rec_List.Write_List (List (Received_Record.Vehicle_List));
+                     if Rec_List.List_Full then
                         if Local_List.List_Full then
                            if Received_Record.List_Full_Time <
                              Local_Record.List_Full_Time
                            then
                               Local_List.Write_List
-                                (Local_List.List (Rec_L.Read_List));
+                                (Local_List.List (Rec_List.Read_List));
                               Local_Record.List_Full_Time :=
                                 Received_Record.List_Full_Time;
                            else
@@ -168,7 +165,7 @@ package body Vehicle_Task_Type is
                            end if;
                         else
                            Local_List.Write_List
-                             (Local_List.List (Rec_L.Read_List));
+                             (Local_List.List (Rec_List.Read_List));
                            Local_Record.List_Full_Time :=
                              Received_Record.List_Full_Time;
                         end if;
@@ -185,12 +182,7 @@ package body Vehicle_Task_Type is
                                 Temp_List.List (Local_List.Read_List)));
                      else
                         Local_List.Max_Union
-                          (Local_List.List (Rec_L.Read_List));
-                        -- If the local list wasn't changed ??!
-                        --  Temp3 :=
-                        --    Local_List.Max_Union
-                        --      (Local_List.List (Local_List2.Read_List));
-                        --  Local_List2.Write_List (Local_List2.List (Temp3));
+                          (Local_List.List (Rec_List.Read_List));
                         if Local_List.List_Full then
                            Send
                              (Send_Type_Y
@@ -204,23 +196,9 @@ package body Vehicle_Task_Type is
                                  Vehicle_List   =>
                                    Temp_List.List (Local_List.Read_List)));
                         end if;
-                        --  if Local_List.List_Full then
-                        --     Send
-                        --       (Send_Type_Y
-                        --          (List_Full_Time => Clock,
-                        --           Vehicle_List   =>
-                        --             Temp_List.List (Local_List.Read_List)));
-                        --  else
-                        --     Local_List.Write_List
-                        --       (Local_List.List (Check_Same_List));
-                        --     Send
-                        --       (Send_Type_Y
-                  --          (List_Full_Time => Local_Record.List_Full_Time,
-                        --           Vehicle_List   =>
-                        --             Temp_List.List (Local_List.Read_List)));
-                        --  end if;
                      end if;
-                     -- Update Local Record to latest value
+                     -- Update Local Record to latest value (Stage B and C
+                     -- case)
                   else
                      if Local_Record.Message_Time <
                        Received_Record.Message_Time
@@ -258,7 +236,8 @@ package body Vehicle_Task_Type is
                      Spiral_Orbit (Current_Charge);
                   end loop;
                end if;
-               -- Could do muliple iterations but problem of uncertainity
+               -- Could do muliple iterations of Lookup_Tables but problem of
+               -- uncertainity
             end if;
             Wait_For_Next_Physics_Update;
          end loop Outer_task_loop;

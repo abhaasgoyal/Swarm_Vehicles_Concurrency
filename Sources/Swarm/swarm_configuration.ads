@@ -22,7 +22,7 @@ package Swarm_Configuration is
    -- Globe_Grid_Drifting)
 -----------------------------------------------------------------------------
 
-   Initial_No_of_Elements : constant Positive  := 200;
+   Initial_No_of_Elements : constant Positive  := 500;
    Initial_Swarm_Position : constant Vector_3D := Zero_Vector_3D;
    Initual_Edge_Length    : constant Real      := 1.0;
 
