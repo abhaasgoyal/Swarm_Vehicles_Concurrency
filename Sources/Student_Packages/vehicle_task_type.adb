@@ -31,11 +31,10 @@ package body Vehicle_Task_Type is
       return Temp_Arr;
    end Initialize_Radian_Array;
 
-   Radians_List       : constant Angles_List := Initialize_Radian_Array;
-   Invalid_Globe_Pos  : constant Vector_3D := (0.0, 0.0, 0.0);
-   Invalid_Time       : constant Time                        := Time_Last;
-   Invalid_List       : constant Temp_List.List (Data_Index) := (others => 0);
-   Invalid_Vehicle_No : constant Positive                    := 1;
+   Radians_List      : constant Angles_List := Initialize_Radian_Array;
+   Invalid_Globe_Pos : constant Vector_3D                   := (0.0, 0.0, 0.0);
+   Invalid_Time      : constant Time                        := Time_Last;
+   Invalid_List      : constant Temp_List.List (Data_Index) := (others => 0);
 
    -- Printing the lookup table for all vehicles after stipulated time for
    -- consensus
@@ -54,16 +53,18 @@ package body Vehicle_Task_Type is
    end Print_Stuff;
 
    task body Vehicle_Task is
-      Start_Time   : Time := Clock;
+      Start_Time   : constant Time := Clock;
       Radians_Ix   : Degrees;
       Local_Record : Inter_Vehicle_Messages;
       Vehicle_No   : Positive;
       Vehicle_Set  : Natural;
+      Check_Shrink : Boolean       := True;
+
       -- Phi is w.r.t z-axis and Theta w.r.t xy-plane
       Phi   : Real;
       Theta : Real;
       package Local_List is new Concrete_Order (Abstract_List);
-      -- use type Local_List.List;
+
       function Distance (V_1, V_2 : Vector_3D) return Real is
         (abs (V_1 - V_2));
       function Send_Type_X
@@ -72,15 +73,14 @@ package body Vehicle_Task_Type is
 
         ((Message_Type => Type_X, Globe_Pos => Globe_Pos,
           Message_Time => Message_Time, List_Full_Time => Invalid_Time,
-          Vehicle_List => Temp_List.List (Invalid_List),
-          Vehicle_No   => Invalid_Vehicle_No));
+          Vehicle_List => Temp_List.List (Invalid_List)));
       function Send_Type_Y
         (Vehicle_List : Temp_List.List; List_Full_Time : Time)
          return Inter_Vehicle_Messages is
 
         ((Message_Type => Type_Y, Globe_Pos => Invalid_Globe_Pos,
           Message_Time => Invalid_Time, List_Full_Time => List_Full_Time,
-          Vehicle_List => Vehicle_List, Vehicle_No => Invalid_Vehicle_No));
+          Vehicle_List => Vehicle_List));
       -- Functions for detemining next position of orbit
       function Y_Axis_Rotate (A : Vector_3D) return Vector_3D is
         ((A (x) * Cos (Phi) - A (y) * Sin (Phi),
@@ -95,8 +95,6 @@ package body Vehicle_Task_Type is
          Set_Throttle (Low_Throttle);
          Set_Destination (Orbit_Position (Real (Norm_Radius * Charge)));
       end Spiral_Orbit;
-      --  Temp  : Boolean;
-      --  Temp3 : Local_List.List (Data_Index); Temp2 : Boolean;
    begin
       accept Identify (Set_Vehicle_No : Positive; Local_Task_Id : out Task_Id)
       do
@@ -104,28 +102,13 @@ package body Vehicle_Task_Type is
          Local_Task_Id := Current_Task;
       end Identify;
       Vehicle_Set := Vehicle_No mod No_Of_Vehicle_Sets;
-      Radians_Ix  := Degrees (Vehicle_No * Initial_Degree_Step);
-      Theta       := Radians_List (Radians_Ix);
+      -- mod 360 is done w.r.t safety in Development mode
+      Radians_Ix := Degrees ((Vehicle_No * Initial_Degree_Step) mod 360);
+      Theta      := Radians_List (Radians_Ix);
       Phi := Radians_List (Degrees (Vehicle_Set * (180 / No_Of_Vehicle_Sets)));
-      --  Temp := Local_List.Add_To_List (20); Temp := Local_List.Add_To_List
-      --  (40); Temp := Local_List.Add_To_List (44); Temp :=
-      --  Local_List.Add_To_List (45); Temp2 := Local_List2.Add_To_List
-      --  (50); Temp2 := Local_List2.Add_To_List (60);
 
---      Put_Line (Natural'Image (Local_List.Read_List (1)));
-      --    Local_List2.Write_List (Local_List2.List (Local_List.Read_List));
---      Put_Line (Natural'Image (Local_List2.Read_List (6)));
---      Temp3 := Local_List.List (Local_List2.Read_List);
---      Put_Line (Natural'Image (Temp3 (5)));
-
-      --  Temp3 := Local_List.Max_Union (Local_List.List
-      --  (Local_List2.Read_List)); Local_List2.Write_List
-      --  (Local_List2.List (Temp3));
-
-      --  Put_Line (Natural'Image (Local_List2.Read_List (4)));
-
-      -- Uncomment when important
       Local_List.Add_To_List (Vehicle_No);
+      -- Comment below operation when wanting to implement Stage B/C
       Send
         (Send_Type_Y
            (List_Full_Time => Time_First,
@@ -252,7 +235,10 @@ package body Vehicle_Task_Type is
                         Spiral_Orbit (Current_Charge);
                      end if;
                      -- Propagate the latest signal
-                     Send (Local_Record);
+                     Send
+                       (Send_Type_X
+                          (Globe_Pos    => Local_Record.Globe_Pos,
+                           Message_Time => Local_Record.Message_Time));
                   end if;
                else
                   -- Move normally and provide graceful degradation in case
@@ -260,8 +246,10 @@ package body Vehicle_Task_Type is
                   Spiral_Orbit (Current_Charge);
                end if;
             end;
-            if To_Duration (Clock - Start_Time) > Consensus_Time_Interval then
-               Start_Time := Clock;
+            if To_Duration (Clock - Start_Time) > Consensus_Time_Interval
+              and then Check_Shrink
+            then
+               Check_Shrink := False;
                Print_Stuff.Print_Arr
                  (Temp_List.List (Local_List.Read_List), Vehicle_No);
                if not Local_List.Found_In_List (Vehicle_No) then
@@ -270,7 +258,7 @@ package body Vehicle_Task_Type is
                      Spiral_Orbit (Current_Charge);
                   end loop;
                end if;
-               -- Could do muliple iterations but problemo
+               -- Could do muliple iterations but problem of uncertainity
             end if;
             Wait_For_Next_Physics_Update;
          end loop Outer_task_loop;

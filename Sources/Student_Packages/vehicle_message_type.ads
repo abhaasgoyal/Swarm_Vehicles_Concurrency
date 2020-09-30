@@ -16,7 +16,6 @@ package Vehicle_Message_Type is
       Message_Time   : Time;
       List_Full_Time : Time := Time_First;
       Vehicle_List   : List (Data_Index);
-      Vehicle_No     : Positive;
    end record;
 
 end Vehicle_Message_Type;

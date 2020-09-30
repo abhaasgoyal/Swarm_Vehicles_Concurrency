@@ -12,3 +12,5 @@
   - The center of mass remains the same in this case
   - When done with multiple globes since going in a rightward vector
   - If the vehicle is going somewhere and at that point it needs to change the destination problem (limited to one globe)
+* Stage c
+  - When the vehicle is going to the swarm in low battery and is about to reach it the globe dies => Problem to a lot of swarms

@@ -15,13 +15,13 @@ project Swarm_Linux is
    case Specific_Build_Modes is
 
       when "Production" =>
-         for Object_Dir use "Build/for_production";
+         for Object_Dir use "Build/for_development";
 
       when "Development" =>
          for Object_Dir use "Build/for_development";
 
       when "Performance" =>
-         for Object_Dir use "Build/for_performance";
+         for Object_Dir use "Build/for_development";
    end case;
 
    package Compiler is
